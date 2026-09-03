@@ -1,0 +1,84 @@
+﻿<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Book an Appointment</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 40px auto; padding: 24px; background-color: #f9fafb; color: #111827; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+    h2 { margin-top: 0; color: #1f2937; text-align: center; }
+    form { display: flex; flex-direction: column; gap: 16px; }
+    label { font-size: 14px; font-weight: 600; margin-bottom: -10px; color: #374151; }
+    input, textarea, button { padding: 12px; font-size: 15px; border: 1px solid #d1d5db; border-radius: 6px; outline: none; }
+    input:focus, textarea:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2); }
+    textarea { resize: vertical; min-height: 80px; }
+    button { background-color: #2563eb; color: white; font-weight: 600; border: none; cursor: pointer; transition: background-color 0.2s; }
+    button:hover { background-color: #1d4ed8; }
+    button:disabled { background-color: #9ca3af; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <h2>Appointment Booking</h2>
+  <form id="bookingForm">
+    <label for="name">আপনার নাম</label>
+    <input type="text" id="name" placeholder="নাম লিখুন" required>
+    <label for="email">ইমেইল অ্যাড্রেস</label>
+    <input type="email" id="email" placeholder="example@mail.com" required>
+    <label for="phone">ফোন / WhatsApp নম্বর</label>
+    <input type="tel" id="phone" placeholder="017xxxxxxxx" required>
+    <label for="purpose">মিটিংয়ের বিষয়বস্তু</label>
+    <textarea id="purpose" placeholder="সংক্ষেপে আলোচনার বিষয় লিখুন..." required></textarea>
+    <label for="date">তারিখ</label>
+    <input type="date" id="date" required>
+    <label for="time">সময়</label>
+    <input type="time" id="time" required>
+    <button type="submit" id="submitBtn">Book Appointment</button>
+  </form>
+
+  <script>
+    const SUPABASE_URL = 'https://xybimiabjmfawxkrscvu.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_Kqv8UFQAOLFgyyTbowLvWQ_9lUZ-3zX';
+
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'পাঠানো হচ্ছে...';
+
+      const appointmentDate = document.getElementById('date').value;
+      const startTime = document.getElementById('time').value;
+
+      const [hours, minutes] = startTime.split(':').map(Number);
+      const totalMinutes = hours * 60 + minutes + 30;
+      const endHours = String(Math.floor(totalMinutes / 60) % 24).padStart(2, '0');
+      const endMins = String(totalMinutes % 60).padStart(2, '0');
+      const endTime = `${endHours}:${endMins}`;
+
+      try {
+        const { data, error } = await supabaseClient.from('appointments').insert([{
+          visitor_name: document.getElementById('name').value,
+          visitor_email: document.getElementById('email').value,
+          visitor_phone: document.getElementById('phone').value,
+          meeting_purpose: document.getElementById('purpose').value,
+          appointment_date: appointmentDate,
+          start_time: startTime,
+          end_time: endTime
+        }]);
+
+        if (error) throw error;
+        alert('আপনার বুকিং রিকোয়েস্ট সফলভাবে পাঠানো হয়েছে!');
+        document.getElementById('bookingForm').reset();
+      } catch (error) {
+        alert('ত্রুটি হয়েছে: ' + error.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Book Appointment';
+      }
+    });
+  </script>
+</body>
+</html>
