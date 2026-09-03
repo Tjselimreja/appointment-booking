@@ -43,6 +43,10 @@
 
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // Get host ID from URL query parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const hostId = urlParams.get('host');
+
     document.getElementById('bookingForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const submitBtn = document.getElementById('submitBtn');
@@ -59,7 +63,7 @@
       const endTime = `${endHours}:${endMins}`;
 
       try {
-        const { data, error } = await supabaseClient.from('appointments').insert([{
+        const payload = {
           visitor_name: document.getElementById('name').value,
           visitor_email: document.getElementById('email').value,
           visitor_phone: document.getElementById('phone').value,
@@ -67,7 +71,11 @@
           appointment_date: appointmentDate,
           start_time: startTime,
           end_time: endTime
-        }]);
+        };
+
+        if (hostId) payload.host_id = hostId;
+
+        const { data, error } = await supabaseClient.from('appointments').insert([payload]);
 
         if (error) throw error;
         alert('আপনার বুকিং রিকোয়েস্ট সফলভাবে পাঠানো হয়েছে!');
