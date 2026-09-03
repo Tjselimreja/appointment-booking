@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard - Appointments</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- SweetAlert2 for Modern Popups -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
     * { box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 900px; margin: 30px auto; padding: 20px; background-color: #f3f4f6; color: #1f2937; }
@@ -12,7 +14,7 @@
     .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
     form { display: flex; flex-direction: column; gap: 12px; max-width: 350px; margin: 0 auto; }
     input, button { padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
-    button { background-color: #2563eb; color: white; border: none; font-weight: bold; cursor: pointer; }
+    button { background-color: #2563eb; color: white; border: none; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
     button:hover { background-color: #1d4ed8; }
     .toggle-auth { text-align: center; font-size: 13px; color: #2563eb; cursor: pointer; margin-top: 10px; text-decoration: underline; }
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
@@ -117,8 +119,15 @@
         if (isSignUp) {
           const { data, error } = await supabaseClient.auth.signUp({ email, password });
           if (error) throw error;
-          alert('Account created successfully! You can now log in.');
-          location.reload();
+          
+          Swal.fire({
+            title: 'Account Created!',
+            text: 'You can now log in to your account.',
+            icon: 'success',
+            confirmColor: '#2563eb'
+          }).then(() => {
+            location.reload();
+          });
         } else {
           const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
           if (error) throw error;
@@ -126,7 +135,12 @@
           showDashboard();
         }
       } catch (error) {
-        alert('Authentication Error: ' + error.message);
+        Swal.fire({
+          title: 'Error!',
+          text: error.message,
+          icon: 'error',
+          confirmColor: '#dc2626'
+        });
       }
     });
 
@@ -140,7 +154,6 @@
       authSection.classList.add('hidden');
       dashboardSection.classList.remove('hidden');
 
-      // Generate Shareable URL
       const baseUrl = window.location.origin + window.location.pathname.replace('dashboard.html', 'index.html');
       const bookingUrl = `${baseUrl}?host=${currentUser.id}`;
       document.getElementById('shareLinkInput').value = bookingUrl;
@@ -152,7 +165,15 @@
       const linkInput = document.getElementById('shareLinkInput');
       linkInput.select();
       navigator.clipboard.writeText(linkInput.value);
-      alert('Booking link copied to clipboard!');
+      
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'Booking link copied to clipboard!',
+        showConfirmButton: false,
+        timer: 2000
+      });
     }
 
     // Fetch user specific appointments
@@ -164,7 +185,7 @@
         .order('created_at', { ascending: false });
 
       if (error) {
-        alert('Error loading data: ' + error.message);
+        Swal.fire('Error!', error.message, 'error');
         return;
       }
 
@@ -200,8 +221,16 @@
         .eq('id', id);
 
       if (error) {
-        alert('Update failed: ' + error.message);
+        Swal.fire('Update Failed', error.message, 'error');
       } else {
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'success',
+          title: `Appointment ${newStatus}!`,
+          showConfirmButton: false,
+          timer: 1500
+        });
         fetchAppointments();
       }
     }
