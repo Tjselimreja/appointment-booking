@@ -11,12 +11,15 @@
     h2 { margin-top: 0; color: #1f2937; text-align: center; }
     form { display: flex; flex-direction: column; gap: 16px; }
     label { font-size: 14px; font-weight: 600; margin-bottom: -10px; color: #374151; }
-    input, textarea, button { padding: 12px; font-size: 15px; border: 1px solid #d1d5db; border-radius: 6px; outline: none; }
-    input:focus, textarea:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2); }
+    input, textarea, select, button { padding: 12px; font-size: 15px; border: 1px solid #d1d5db; border-radius: 6px; outline: none; font-family: inherit; }
+    input:focus, textarea:focus, select:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2); }
     textarea { resize: vertical; min-height: 80px; }
+    select:disabled { background-color: #f3f4f6; color: #9ca3af; }
     button { background-color: #2563eb; color: white; font-weight: 600; border: none; cursor: pointer; transition: background-color 0.2s; }
     button:hover { background-color: #1d4ed8; }
     button:disabled { background-color: #9ca3af; cursor: not-allowed; }
+    #slotStatus { font-size: 13px; color: #6b7280; margin-top: -10px; }
+    #slotStatus.error { color: #dc2626; }
   </style>
 </head>
 <body>
@@ -24,43 +27,131 @@
   <form id="bookingForm">
     <label for="name">আপনার নাম</label>
     <input type="text" id="name" placeholder="নাম লিখুন" required>
+
     <label for="email">ইমেইল অ্যাড্রেস</label>
     <input type="email" id="email" placeholder="example@mail.com" required>
+
     <label for="phone">ফোন / WhatsApp নম্বর</label>
     <input type="tel" id="phone" placeholder="017xxxxxxxx" required>
+
     <label for="purpose">মিটিংয়ের বিষয়বস্তু</label>
-    <textarea id="purpose" placeholder="সংক্ষেপে আলোচনার বিষয় লিখুন..." required></textarea>
+    <textarea id="purpose" placeholder="সংক্ষেপে আলোচনার বিষয় লিখুন..." required></textarea>
+
     <label for="date">তারিখ</label>
     <input type="date" id="date" required>
-    <label for="time">সময়</label>
-    <input type="time" id="time" required>
+
+    <label for="time">সময়</label>
+    <select id="time" required disabled>
+      <option value="">প্রথমে তারিখ নির্বাচন করুন</option>
+    </select>
+    <div id="slotStatus"></div>
+
     <button type="submit" id="submitBtn">Book Appointment</button>
   </form>
 
   <script>
     const SUPABASE_URL = 'https://xybimiabjmfawxkrscvu.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_Kqv8UFQAOLFgyyTbowLvWQ_9lUZ-3zX';
-
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Get host ID from URL query parameters
     const urlParams = new URLSearchParams(window.location.search);
     const hostId = urlParams.get('host');
 
+    // ---- Business hours config (এখানে চাইলে বদলাও) ----
+    const DAY_START = '09:00';   // সকাল ৯টা থেকে
+    const DAY_END   = '17:00';  // বিকাল ৫টা পর্যন্ত
+    const SLOT_MINUTES = 30;    // প্রতি বুকিং ৩০ মিনিটের
+
+    const dateInput = document.getElementById('date');
+    const timeSelect = document.getElementById('time');
+    const slotStatus = document.getElementById('slotStatus');
+    const submitBtn = document.getElementById('submitBtn');
+
+    // আজকের আগের তারিখ সিলেক্ট করা আটকানো
+    dateInput.min = new Date().toISOString().split('T')[0];
+
+    function generateAllSlots() {
+      const slots = [];
+      let [h, m] = DAY_START.split(':').map(Number);
+      const [endH, endM] = DAY_END.split(':').map(Number);
+      while (h < endH || (h === endH && m < endM)) {
+        slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+        m += SLOT_MINUTES;
+        if (m >= 60) { m -= 60; h += 1; }
+      }
+      return slots;
+    }
+
+    function addMinutes(time, minsToAdd) {
+      const [h, m] = time.split(':').map(Number);
+      const total = h * 60 + m + minsToAdd;
+      const endH = String(Math.floor(total / 60) % 24).padStart(2, '0');
+      const endM = String(total % 60).padStart(2, '0');
+      return `${endH}:${endM}`;
+    }
+
+    async function loadAvailableSlots() {
+      const selectedDate = dateInput.value;
+      timeSelect.innerHTML = '<option value="">লোড হচ্ছে...</option>';
+      timeSelect.disabled = true;
+      slotStatus.textContent = '';
+      slotStatus.className = '';
+
+      if (!selectedDate) return;
+      if (!hostId) {
+        slotStatus.textContent = 'হোস্ট আইডি পাওয়া যায়নি। সঠিক বুকিং লিংক ব্যবহার করুন।';
+        slotStatus.className = 'error';
+        timeSelect.innerHTML = '<option value="">—</option>';
+        return;
+      }
+
+      // এই host-এর এই তারিখে কোন কোন সময় ইতিমধ্যে busy (pending/confirmed)
+      const { data, error } = await supabaseClient
+        .from('appointments')
+        .select('start_time')
+        .eq('host_id', hostId)
+        .eq('appointment_date', selectedDate)
+        .in('status', ['pending', 'confirmed']);
+
+      if (error) {
+        console.error(error);
+        slotStatus.textContent = 'স্লট লোড করতে সমস্যা হয়েছে, আবার চেষ্টা করুন।';
+        slotStatus.className = 'error';
+        timeSelect.innerHTML = '<option value="">—</option>';
+        return;
+      }
+
+      // DB থেকে "09:00:00" ফরম্যাটে আসতে পারে, তাই প্রথম ৫ অক্ষর নেওয়া হচ্ছে ("09:00")
+      const busySet = new Set(data.map(row => row.start_time.slice(0, 5)));
+
+      const allSlots = generateAllSlots();
+      const availableSlots = allSlots.filter(slot => !busySet.has(slot));
+
+      timeSelect.innerHTML = '';
+      if (availableSlots.length === 0) {
+        timeSelect.innerHTML = '<option value="">এই দিনে কোনো সময় খালি নেই</option>';
+        timeSelect.disabled = true;
+        slotStatus.textContent = 'অনুগ্রহ করে অন্য একটি তারিখ নির্বাচন করুন।';
+        slotStatus.className = 'error';
+        return;
+      }
+
+      timeSelect.innerHTML = '<option value="">সময় নির্বাচন করুন</option>' +
+        availableSlots.map(slot => `<option value="${slot}">${slot}</option>`).join('');
+      timeSelect.disabled = false;
+      slotStatus.textContent = `${availableSlots.length}টি সময় খালি আছে`;
+    }
+
+    dateInput.addEventListener('change', loadAvailableSlots);
+
     document.getElementById('bookingForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const submitBtn = document.getElementById('submitBtn');
       submitBtn.disabled = true;
       submitBtn.innerText = 'পাঠানো হচ্ছে...';
 
-      const appointmentDate = document.getElementById('date').value;
-      const startTime = document.getElementById('time').value;
-
-      const [hours, minutes] = startTime.split(':').map(Number);
-      const totalMinutes = hours * 60 + minutes + 30;
-      const endHours = String(Math.floor(totalMinutes / 60) % 24).padStart(2, '0');
-      const endMins = String(totalMinutes % 60).padStart(2, '0');
-      const endTime = `${endHours}:${endMins}`;
+      const appointmentDate = dateInput.value;
+      const startTime = timeSelect.value;
+      const endTime = addMinutes(startTime, SLOT_MINUTES);
 
       try {
         const payload = {
@@ -70,16 +161,28 @@
           meeting_purpose: document.getElementById('purpose').value,
           appointment_date: appointmentDate,
           start_time: startTime,
-          end_time: endTime
+          end_time: endTime,
+          status: 'pending'
         };
-
         if (hostId) payload.host_id = hostId;
 
-        const { data, error } = await supabaseClient.from('appointments').insert([payload]);
+        const { error } = await supabaseClient.from('appointments').insert([payload]);
 
-        if (error) throw error;
+        if (error) {
+          // ডাটাবেজ-লেভেল duplicate slot protection (unique constraint) ধরা পড়লে
+          if (error.code === '23505') {
+            alert('দুঃখিত, এই সময়টি মাত্রই অন্য কেউ বুক করে ফেলেছে। অনুগ্রহ করে অন্য একটি সময় নির্বাচন করুন।');
+            await loadAvailableSlots();
+            return;
+          }
+          throw error;
+        }
+
         alert('আপনার বুকিং রিকোয়েস্ট সফলভাবে পাঠানো হয়েছে!');
         document.getElementById('bookingForm').reset();
+        timeSelect.innerHTML = '<option value="">প্রথমে তারিখ নির্বাচন করুন</option>';
+        timeSelect.disabled = true;
+        slotStatus.textContent = '';
       } catch (error) {
         alert('ত্রুটি হয়েছে: ' + error.message);
       } finally {
