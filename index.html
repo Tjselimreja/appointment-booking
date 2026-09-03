@@ -1,53 +1,212 @@
 ﻿<!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Book an Appointment</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    * { box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 40px auto; padding: 24px; background-color: #f9fafb; color: #111827; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-    h2 { margin-top: 0; color: #1f2937; text-align: center; }
-    form { display: flex; flex-direction: column; gap: 16px; }
-    label { font-size: 14px; font-weight: 600; margin-bottom: -10px; color: #374151; }
-    input, textarea, select, button { padding: 12px; font-size: 15px; border: 1px solid #d1d5db; border-radius: 6px; outline: none; font-family: inherit; }
-    input:focus, textarea:focus, select:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2); }
-    textarea { resize: vertical; min-height: 80px; }
-    select:disabled { background-color: #f3f4f6; color: #9ca3af; }
-    button { background-color: #2563eb; color: white; font-weight: 600; border: none; cursor: pointer; transition: background-color 0.2s; }
-    button:hover { background-color: #1d4ed8; }
-    button:disabled { background-color: #9ca3af; cursor: not-allowed; }
-    #slotStatus { font-size: 13px; color: #6b7280; margin-top: -10px; }
-    #slotStatus.error { color: #dc2626; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Book an Appointment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tiro+Bangla:ital@0;1&family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --ink: #1B2A2E;
+    --muted: #5B6B66;
+    --paper: #F5F6F4;
+    --paper-alt: #ECEFEC;
+    --line: #CBD3CF;
+    --accent: #2F6D5E;
+    --accent-dark: #204A40;
+    --danger: #9C3B2C;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    font-family: 'Hind Siliguri', 'Segoe UI', sans-serif;
+    color: var(--ink);
+  }
+  .sheet {
+    max-width: 460px;
+    margin: 48px auto;
+    padding: 44px 32px 36px;
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    animation: sheetIn 0.5s ease both;
+  }
+  @keyframes sheetIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sheet, .slot-group, .slot-btn.selected { animation: none !important; }
+  }
+  @media (max-width: 520px) {
+    .sheet { margin: 0; border: none; padding: 32px 22px; }
+  }
+
+  header h1 {
+    font-family: 'Tiro Bangla', serif;
+    font-weight: 400;
+    font-size: 34px;
+    margin: 0 0 10px;
+    letter-spacing: 0.2px;
+  }
+  header p {
+    margin: 0 0 24px;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.6;
+    max-width: 38ch;
+  }
+  header hr {
+    border: none;
+    border-top: 1px solid var(--line);
+    margin: 0 0 28px;
+  }
+
+  .section-title {
+    font-family: 'Tiro Bangla', serif;
+    font-size: 19px;
+    font-weight: 400;
+    color: var(--ink);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 9px;
+    margin: 34px 0 20px;
+  }
+  .section-title:first-of-type { margin-top: 0; }
+
+  .field { margin-bottom: 20px; }
+  .field label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+    margin-bottom: 7px;
+  }
+  .field input,
+  .field textarea {
+    width: 100%;
+    border: none;
+    border-bottom: 1.5px solid var(--line);
+    background: transparent;
+    padding: 9px 2px;
+    font-size: 16px;
+    font-family: inherit;
+    color: var(--ink);
+    outline: none;
+  }
+  .field input:focus,
+  .field textarea:focus { border-bottom-color: var(--accent); }
+  .field textarea { resize: vertical; min-height: 64px; }
+
+  .slot-group { margin-bottom: 18px; }
+  .slot-group-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    margin-bottom: 9px;
+  }
+  .slot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+    gap: 8px;
+  }
+  .slot-btn {
+    padding: 10px 4px;
+    border: 1px solid var(--line);
+    background: var(--paper-alt);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  }
+  .slot-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-dark); }
+  .slot-btn:active:not(:disabled) { transform: scale(0.96); }
+  .slot-btn.selected { background: var(--accent); border-color: var(--accent); color: #fff; animation: slotPop 0.2s ease; }
+  @keyframes slotPop {
+    0% { transform: scale(0.94); }
+    100% { transform: scale(1); }
+  }
+  .slot-group { animation: fadeSlideIn 0.35s ease both; }
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .slot-btn:disabled {
+    color: #9BA8A3;
+    background: transparent;
+    border-style: dashed;
+    text-decoration: line-through;
+    cursor: not-allowed;
+  }
+
+  #slotStatus { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  #slotStatus.error { color: var(--danger); }
+  #slotPlaceholder { font-size: 14px; color: var(--muted); padding: 4px 0 8px; }
+
+  .submit-btn {
+    width: 100%;
+    padding: 15px;
+    margin-top: 12px;
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .submit-btn { transition: background 0.15s ease, transform 0.1s ease; }
+  .submit-btn:hover:not(:disabled) { background: var(--accent-dark); }
+  .submit-btn:active:not(:disabled) { transform: scale(0.985); }
+  .submit-btn:disabled { background: #A9B3AF; cursor: not-allowed; }
+  .field input, .field textarea { transition: border-color 0.15s ease; }
+</style>
 </head>
 <body>
-  <h2>Appointment Booking</h2>
-  <form id="bookingForm">
-    <label for="name">আপনার নাম</label>
-    <input type="text" id="name" placeholder="নাম লিখুন" required>
+  <div class="sheet">
+    <header>
+      <h1>অ্যাপয়েন্টমেন্ট</h1>
+      <p>নিচের তথ্য পূরণ করে আপনার পছন্দের সময় বেছে নিন। অনুরোধ জমা দেওয়ার পর নিশ্চিতকরণ পাঠানো হবে।</p>
+      <hr>
+    </header>
 
-    <label for="email">ইমেইল অ্যাড্রেস</label>
-    <input type="email" id="email" placeholder="example@mail.com" required>
+    <form id="bookingForm">
+      <div class="section-title">ব্যক্তিগত তথ্য</div>
 
-    <label for="phone">ফোন / WhatsApp নম্বর</label>
-    <input type="tel" id="phone" placeholder="017xxxxxxxx" required>
+      <div class="field">
+        <label for="name">আপনার নাম</label>
+        <input type="text" id="name" required>
+      </div>
+      <div class="field">
+        <label for="email">ইমেইল অ্যাড্রেস</label>
+        <input type="email" id="email" required>
+      </div>
+      <div class="field">
+        <label for="phone">ফোন / WhatsApp নম্বর</label>
+        <input type="tel" id="phone" required>
+      </div>
+      <div class="field">
+        <label for="purpose">মিটিংয়ের বিষয়বস্তু</label>
+        <textarea id="purpose" required></textarea>
+      </div>
 
-    <label for="purpose">মিটিংয়ের বিষয়বস্তু</label>
-    <textarea id="purpose" placeholder="সংক্ষেপে আলোচনার বিষয় লিখুন..." required></textarea>
+      <div class="section-title">সময় নির্বাচন করুন</div>
 
-    <label for="date">তারিখ</label>
-    <input type="date" id="date" required>
+      <div class="field">
+        <label for="date">তারিখ</label>
+        <input type="date" id="date" required>
+      </div>
 
-    <label for="time">সময়</label>
-    <select id="time" required disabled>
-      <option value="">প্রথমে তারিখ নির্বাচন করুন</option>
-    </select>
-    <div id="slotStatus"></div>
+      <div id="slotPlaceholder">প্রথমে একটি তারিখ নির্বাচন করুন</div>
+      <div id="slotsContainer"></div>
+      <div id="slotStatus"></div>
 
-    <button type="submit" id="submitBtn">Book Appointment</button>
-  </form>
+      <button type="submit" id="submitBtn" class="submit-btn">অ্যাপয়েন্টমেন্ট রিকোয়েস্ট পাঠান</button>
+    </form>
+  </div>
 
   <script>
     const SUPABASE_URL = 'https://xybimiabjmfawxkrscvu.supabase.co';
@@ -58,16 +217,18 @@
     const hostId = urlParams.get('host');
 
     // ---- Business hours config (এখানে চাইলে বদলাও) ----
-    const DAY_START = '09:00';   // সকাল ৯টা থেকে
-    const DAY_END   = '17:00';  // বিকাল ৫টা পর্যন্ত
-    const SLOT_MINUTES = 30;    // প্রতি বুকিং ৩০ মিনিটের
+    const DAY_START = '09:00';
+    const DAY_END   = '17:00';
+    const SLOT_MINUTES = 30;
 
     const dateInput = document.getElementById('date');
-    const timeSelect = document.getElementById('time');
+    const slotsContainer = document.getElementById('slotsContainer');
+    const slotPlaceholder = document.getElementById('slotPlaceholder');
     const slotStatus = document.getElementById('slotStatus');
     const submitBtn = document.getElementById('submitBtn');
 
-    // আজকের আগের তারিখ সিলেক্ট করা আটকানো
+    let selectedTime = null;
+
     dateInput.min = new Date().toISOString().split('T')[0];
 
     function generateAllSlots() {
@@ -90,22 +251,65 @@
       return `${endH}:${endM}`;
     }
 
+    function groupLabel(time) {
+      const hour = parseInt(time.split(':')[0], 10);
+      if (hour < 12) return 'সকাল';
+      if (hour < 15) return 'দুপুর';
+      return 'বিকাল';
+    }
+
+    function renderSlotGrid(allSlots, busySet) {
+      const groups = {};
+      allSlots.forEach(slot => {
+        const g = groupLabel(slot);
+        if (!groups[g]) groups[g] = [];
+        groups[g].push(slot);
+      });
+
+      let html = '';
+      Object.keys(groups).forEach(groupName => {
+        html += `<div class="slot-group">
+          <div class="slot-group-label">${groupName}</div>
+          <div class="slot-grid">`;
+        groups[groupName].forEach(slot => {
+          const busy = busySet.has(slot);
+          html += `<button type="button" class="slot-btn" data-time="${slot}" ${busy ? 'disabled' : ''}>${slot}</button>`;
+        });
+        html += `</div></div>`;
+      });
+      slotsContainer.innerHTML = html;
+
+      slotsContainer.querySelectorAll('.slot-btn:not(:disabled)').forEach(btn => {
+        btn.addEventListener('click', () => {
+          slotsContainer.querySelectorAll('.slot-btn.selected').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          selectedTime = btn.dataset.time;
+        });
+      });
+    }
+
     async function loadAvailableSlots() {
+      selectedTime = null;
       const selectedDate = dateInput.value;
-      timeSelect.innerHTML = '<option value="">লোড হচ্ছে...</option>';
-      timeSelect.disabled = true;
+      slotsContainer.innerHTML = '';
       slotStatus.textContent = '';
       slotStatus.className = '';
+      slotPlaceholder.style.display = 'none';
 
-      if (!selectedDate) return;
+      if (!selectedDate) {
+        slotPlaceholder.textContent = 'প্রথমে একটি তারিখ নির্বাচন করুন';
+        slotPlaceholder.style.display = 'block';
+        return;
+      }
       if (!hostId) {
         slotStatus.textContent = 'হোস্ট আইডি পাওয়া যায়নি। সঠিক বুকিং লিংক ব্যবহার করুন।';
         slotStatus.className = 'error';
-        timeSelect.innerHTML = '<option value="">—</option>';
         return;
       }
 
-      // এই host-এর এই তারিখে কোন কোন সময় ইতিমধ্যে busy (pending/confirmed)
+      slotPlaceholder.textContent = 'সময় লোড হচ্ছে...';
+      slotPlaceholder.style.display = 'block';
+
       const { data, error } = await supabaseClient
         .from('appointments')
         .select('start_time')
@@ -113,44 +317,49 @@
         .eq('appointment_date', selectedDate)
         .in('status', ['pending', 'confirmed']);
 
+      slotPlaceholder.style.display = 'none';
+
       if (error) {
         console.error(error);
         slotStatus.textContent = 'স্লট লোড করতে সমস্যা হয়েছে, আবার চেষ্টা করুন।';
         slotStatus.className = 'error';
-        timeSelect.innerHTML = '<option value="">—</option>';
         return;
       }
 
-      // DB থেকে "09:00:00" ফরম্যাটে আসতে পারে, তাই প্রথম ৫ অক্ষর নেওয়া হচ্ছে ("09:00")
       const busySet = new Set(data.map(row => row.start_time.slice(0, 5)));
-
       const allSlots = generateAllSlots();
-      const availableSlots = allSlots.filter(slot => !busySet.has(slot));
+      const availableCount = allSlots.filter(s => !busySet.has(s)).length;
 
-      timeSelect.innerHTML = '';
-      if (availableSlots.length === 0) {
-        timeSelect.innerHTML = '<option value="">এই দিনে কোনো সময় খালি নেই</option>';
-        timeSelect.disabled = true;
-        slotStatus.textContent = 'অনুগ্রহ করে অন্য একটি তারিখ নির্বাচন করুন।';
+      renderSlotGrid(allSlots, busySet);
+
+      if (availableCount === 0) {
+        slotStatus.textContent = 'এই দিনে কোনো সময় খালি নেই। অন্য একটি তারিখ নির্বাচন করুন।';
         slotStatus.className = 'error';
-        return;
+      } else {
+        slotStatus.textContent = `${availableCount}টি সময় খালি আছে`;
       }
-
-      timeSelect.innerHTML = '<option value="">সময় নির্বাচন করুন</option>' +
-        availableSlots.map(slot => `<option value="${slot}">${slot}</option>`).join('');
-      timeSelect.disabled = false;
-      slotStatus.textContent = `${availableSlots.length}টি সময় খালি আছে`;
     }
 
     dateInput.addEventListener('change', loadAvailableSlots);
 
+    // ব্রাউজারের Back/Forward থেকে পুরনো (cached) পেজ ফিরে এলে slot list জোর করে রিফ্রেশ করা
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted && dateInput.value) loadAvailableSlots();
+    });
+
     document.getElementById('bookingForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      if (!selectedTime) {
+        alert('অনুগ্রহ করে একটি সময় নির্বাচন করুন।');
+        return;
+      }
+
       submitBtn.disabled = true;
       submitBtn.innerText = 'পাঠানো হচ্ছে...';
 
       const appointmentDate = dateInput.value;
-      const startTime = timeSelect.value;
+      const startTime = selectedTime;
       const endTime = addMinutes(startTime, SLOT_MINUTES);
 
       try {
@@ -169,7 +378,6 @@
         const { error } = await supabaseClient.from('appointments').insert([payload]);
 
         if (error) {
-          // ডাটাবেজ-লেভেল duplicate slot protection (unique constraint) ধরা পড়লে
           if (error.code === '23505') {
             alert('দুঃখিত, এই সময়টি মাত্রই অন্য কেউ বুক করে ফেলেছে। অনুগ্রহ করে অন্য একটি সময় নির্বাচন করুন।');
             await loadAvailableSlots();
@@ -180,14 +388,16 @@
 
         alert('আপনার বুকিং রিকোয়েস্ট সফলভাবে পাঠানো হয়েছে!');
         document.getElementById('bookingForm').reset();
-        timeSelect.innerHTML = '<option value="">প্রথমে তারিখ নির্বাচন করুন</option>';
-        timeSelect.disabled = true;
+        selectedTime = null;
+        slotsContainer.innerHTML = '';
         slotStatus.textContent = '';
+        slotPlaceholder.textContent = 'প্রথমে একটি তারিখ নির্বাচন করুন';
+        slotPlaceholder.style.display = 'block';
       } catch (error) {
         alert('ত্রুটি হয়েছে: ' + error.message);
       } finally {
         submitBtn.disabled = false;
-        submitBtn.innerText = 'Book Appointment';
+        submitBtn.innerText = 'অ্যাপয়েন্টমেন্ট রিকোয়েস্ট পাঠান';
       }
     });
   </script>
